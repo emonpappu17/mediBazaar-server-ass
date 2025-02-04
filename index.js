@@ -4,7 +4,6 @@ require('dotenv').config()
 const cors = require('cors');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 
-
 const port = 8000;
 
 // middleware
@@ -24,15 +23,17 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
-        // await client.connect();
-
+        // All collection
         const db = client.db('mediBazaar')
         const userCollection = db.collection('users')
+        const advertiseCollection = db.collection('advertisements')
 
+        // Storing user to DB
         app.post('/users', async (req, res) => {
             const user = req.body;
             const email = user.email;
 
+            // checking if user already exists
             const isExist = await userCollection.findOne({ email })
             if (isExist) {
                 return res.send('Exists this user')
@@ -44,17 +45,22 @@ async function run() {
             return res.send(result);
         })
 
+        // Get all advertised medicines
+        app.get('/advertised-medicines', async (req, res) => {
+            const result = await advertiseCollection.find().toArray();
+            return res.send(result)
+        })
+
+
         // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
         // await client.close();
     }
 }
+
 run().catch(console.dir);
 
-
-// mediBazaar
-// AwiDKiegyi9KOIWO
 app.get('/', (req, res) => {
     res.send('done')
 })
