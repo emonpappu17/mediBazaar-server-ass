@@ -27,7 +27,8 @@ async function run() {
         const db = client.db('mediBazaar')
         const userCollection = db.collection('users')
         const advertiseCollection = db.collection('advertisements')
-
+        const categoryCollection = db.collection('categories')
+        
         // Storing user to DB
         app.post('/users', async (req, res) => {
             const user = req.body;
@@ -51,6 +52,11 @@ async function run() {
             return res.send(result)
         })
 
+        // Get All Categories
+        app.get('/categories', async (req, res) => {
+            const result = await categoryCollection.find().toArray();
+            return res.send(result)
+        })
 
         // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
