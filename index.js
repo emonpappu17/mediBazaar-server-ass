@@ -28,7 +28,8 @@ async function run() {
         const userCollection = db.collection('users')
         const advertiseCollection = db.collection('advertisements')
         const categoryCollection = db.collection('categories')
-        
+        const medicineCollection = db.collection('medicines')
+
         // Storing user to DB
         app.post('/users', async (req, res) => {
             const user = req.body;
@@ -56,6 +57,27 @@ async function run() {
         app.get('/categories', async (req, res) => {
             const result = await categoryCollection.find().toArray();
             return res.send(result)
+        })
+
+        // Get Discounted Products (Filtered)
+        app.get('/discount-medicines', async (req, res) => {
+            const discountedMedicines = await medicineCollection.find({ discount: { $gt: 0 } }).toArray();
+
+            // Calculating discounted medicine
+            const CalculatedMedicines = discountedMedicines.map((medicine) => {
+                const discountAmount = (medicine.price * medicine.discount) / 100;
+                const discountPrice = parseFloat((medicine.price - discountAmount).toFixed(2))
+
+                return {
+                    medicineName: medicine.name,
+                    medicineImage: medicine.image,
+                    originalPrice: medicine.price,
+                    discountPrice: discountPrice,
+                    discountPercentage: medicine.discount
+                }
+            })
+
+            res.send(CalculatedMedicines)
         })
 
         // await client.db("admin").command({ ping: 1 });
