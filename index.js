@@ -80,6 +80,12 @@ async function run() {
             res.send(CalculatedMedicines)
         })
 
+        // Get all Medicines
+        app.get('/medicines', async (req, res) => {
+            const result = await medicineCollection.find().toArray();
+            res.send(result);
+        })
+
         // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
