@@ -81,10 +81,68 @@ async function run() {
         })
 
         // Get all Medicines
+        // app.get('/medicines', async (req, res) => {
+        //     const { sortBy, category, search } = req.query;
+
+        //     const query = {};
+        //     console.log(query);
+        //     if (category && category !== 'All Categories') query.category = category;
+
+        //     if (search) {
+        //         query.$or = [
+        //             { name: { $regex: search, $options: 'i' } },
+        //             { genericName: { $regex: search, $options: 'i' } },
+        //             { company: { $regex: search, $options: 'i' } },
+        //         ]
+        //     }
+
+
+
+        //     //Sorting
+        //     const sortOptions = {};
+        //     if (sortBy === 'priceLow') sortOptions.price = 1;
+        //     if (sortBy === 'priceHigh') sortOptions.price = -1;
+
+        //     console.log(query);
+        //     const result = await medicineCollection.find(query).sort(sortOptions).toArray();
+        //     res.send(result);
+        // })
+
+
         app.get('/medicines', async (req, res) => {
-            const result = await medicineCollection.find().toArray();
-            res.send(result);
-        })
+            try {
+                const { sortBy, category, search } = req.query;
+
+                // Construct the query object
+                const query = {};
+                if (category && category !== 'All Categories') {
+                    query.category = category;
+                }
+
+                if (search) {
+                    query.$or = [
+                        { name: { $regex: search, $options: 'i' } },
+                        { genericName: { $regex: search, $options: 'i' } },
+                        { company: { $regex: search, $options: 'i' } },
+                    ];
+                }
+
+                // Sorting logic
+                const sortOptions = {
+                    priceLow: { price: 1 },
+                    priceHigh: { price: -1 },
+                }[sortBy] || {}; // Default to no sorting if `sortBy` is undefined
+
+                // Fetch data from MongoDB
+                const result = await medicineCollection.find(query).sort(sortOptions).toArray();
+
+                res.status(200).json(result); // Use `.json()` for better API response handling
+            } catch (error) {
+                console.error('Error fetching medicines:', error);
+                res.status(500).json({ error: 'Internal Server Error' });
+            }
+        });
+
 
         // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
