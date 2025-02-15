@@ -111,7 +111,7 @@ async function run() {
 
         app.get('/medicines', async (req, res) => {
             try {
-                const { sortBy, category, search } = req.query;
+                const { page = 1, limit = 6, sortBy, category, search } = req.query;
 
                 // Construct the query object
                 const query = {};
@@ -134,9 +134,22 @@ async function run() {
                 }[sortBy] || {}; // Default to no sorting if `sortBy` is undefined
 
                 // Fetch data from MongoDB
-                const result = await medicineCollection.find(query).sort(sortOptions).toArray();
+                const medicines = await medicineCollection.find(query).sort(sortOptions).limit(limit * 1).skip((page - 1) * limit).toArray();
+                // const result = await medicineCollection.find(query).sort(sortOptions).toArray();
+                console.log(medicines);
 
-                res.status(200).json(result); // Use `.json()` for better API response handling
+
+                const total = await medicineCollection.countDocuments(query);
+
+                // res.status(200).json(result); // Use `.json()` for better API response handling
+
+
+                res.send({
+                    data: medicines,
+                    totalPages: Math.ceil(total / limit),
+                    currentPage: page
+                })
+
             } catch (error) {
                 console.error('Error fetching medicines:', error);
                 res.status(500).json({ error: 'Internal Server Error' });
