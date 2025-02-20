@@ -81,37 +81,60 @@ async function run() {
         })
 
         // Get all Medicines
-        // app.get('/medicines', async (req, res) => {
-        //     const { sortBy, category, search } = req.query;
+        app.get('/medicines', async (req, res) => {
+            let { page = 1, limit = 6, sortBy, category, search } = req.query;
 
-        //     const query = {};
-        //     console.log(query);
-        //     if (category && category !== 'All Categories') query.category = category;
+            // Making all are number
+            page = Number(page);
+            limit = Number(limit);
 
-        //     if (search) {
-        //         query.$or = [
-        //             { name: { $regex: search, $options: 'i' } },
-        //             { genericName: { $regex: search, $options: 'i' } },
-        //             { company: { $regex: search, $options: 'i' } },
-        //         ]
-        //     }
+            const query = {};
 
+            // Category
+            if (category && category !== 'All Categories') query.category = category;
 
+            //Search
+            if (search) {
+                query.$or = [
+                    { name: { $regex: search, $options: 'i' } },
+                    { genericName: { $regex: search, $options: 'i' } },
+                    { company: { $regex: search, $options: 'i' } },
+                ]
+            }
 
-        //     //Sorting
-        //     const sortOptions = {};
-        //     if (sortBy === 'priceLow') sortOptions.price = 1;
-        //     if (sortBy === 'priceHigh') sortOptions.price = -1;
+            //Sorting
+            const sortOptions = {};
+            if (sortBy === 'priceLow') sortOptions.price = 1;
+            if (sortBy === 'priceHigh') sortOptions.price = -1;
 
-        //     console.log(query);
-        //     const result = await medicineCollection.find(query).sort(sortOptions).toArray();
-        //     res.send(result);
-        // })
+            //Getting all filtered and pagination medicines
+            const medicines = await medicineCollection
+                .find(query)
+                .sort(sortOptions)
+                .limit(limit)
+                .skip((page - 1) * limit)
+                .toArray();
 
+            //Counting total for pagination
+            const total = await medicineCollection.countDocuments(query);
 
+            res.send({
+                data: medicines,
+                totalPages: Math.ceil(total / limit),
+            });
+        })
+
+        // final look
         // app.get('/medicines', async (req, res) => {
         //     try {
-        //         const { page = 1, limit = 6, sortBy, category, search } = req.query;
+        //         let { page = 1, limit = 6, sortBy, category, search } = req.query;
+
+        //         // Convert to numbers
+        //         page = Number(page);
+        //         limit = Number(limit);
+
+        //         if (isNaN(page) || page < 1) page = 1;
+        //         if (isNaN(limit) || limit < 1) limit = 6;
 
         //         // Construct the query object
         //         const query = {};
@@ -131,67 +154,7 @@ async function run() {
         //         const sortOptions = {
         //             priceLow: { price: 1 },
         //             priceHigh: { price: -1 },
-        //         }[sortBy] || {}; // Default to no sorting if `sortBy` is undefined
-
-        //         // Fetch data from MongoDB
-        //         const medicines = await medicineCollection.find(query).sort(sortOptions).limit(limit * 1).skip((page - 1) * limit).toArray();
-        //         // const result = await medicineCollection.find(query).sort(sortOptions).toArray();
-        //         console.log('query here', query);
-
-        //         console.log(medicines);
-
-
-        //         const total = await medicineCollection.countDocuments(query);
-
-        //         // res.status(200).json(result); // Use `.json()` for better API response handling
-
-
-        //         res.send({
-        //             data: medicines,
-        //             totalPages: Math.ceil(total / limit),
-        //             currentPage: page
-        //         })
-
-        //     } catch (error) {
-        //         console.error('Error fetching medicines:', error);
-        //         res.status(500).json({ error: 'Internal Server Error' });
-        //     }
-        // });
-
-
-
-
-        // app.get('/medicines', async (req, res) => {
-        //     try {
-        //         let { page = 1, limit = 6, sortBy, category, search } = req.query;
-
-        //         // Convert to numbers
-        //         page = Number(page);
-        //         limit = Number(limit);
-
-        //         // Validate numbers
-        //         if (isNaN(page) || page < 1) page = 1;
-        //         if (isNaN(limit) || limit < 1) limit = 6;
-
-        //         // Construct the query object
-        //         const query = {};
-        //         if (category && category !== 'All Categories') {
-        //             query.category = category;
-        //         }
-
-        //         // if (search) {
-        //         //     query.$or = [
-        //         //         { name: { $regex: search, $options: 'i' } },
-        //         //         { genericName: { $regex: search, $options: 'i' } },
-        //         //         { company: { $regex: search, $options: 'i' } },
-        //         //     ];
-        //         // }
-
-        //         // Sorting logic
-        //         const sortOptions = {
-        //             priceLow: { price: 1 },
-        //             priceHigh: { price: -1 },
-        //         }[sortBy] || {}; // Default to no sorting
+        //         }[sortBy] || {};
 
         //         // Fetch data from MongoDB
         //         const medicines = await medicineCollection
@@ -201,26 +164,15 @@ async function run() {
         //             .skip((page - 1) * limit)
         //             .toArray();
 
-        //         const total = await medicineCollection.estimatedDocumentCount(query);
+        //         const total = await medicineCollection.countDocuments(query);
 
-        //         console.log('search', search);
+        //         console.log('got the query and total', total, query, page, limit);
 
 
-        //         console.log('query', query);
-
-        //         console.log('total', total);
-        //         console.log('sortBy', sortBy);
-        //         console.log('category', category);
-
-        //         console.log('page', page, 'limit', limit,);
-
-        //         console.log(medicines);
-
-        //         // Send response
         //         res.json({
         //             data: medicines,
         //             totalPages: Math.ceil(total / limit),
-        //             currentPage: page, // Ensuring it's a number
+        //             currentPage: page,
         //         });
 
         //     } catch (error) {
@@ -228,67 +180,6 @@ async function run() {
         //         res.status(500).json({ error: 'Internal Server Error' });
         //     }
         // });
-
-
-
-        app.get('/medicines', async (req, res) => {
-            try {
-                let { page = 1, limit = 6, sortBy, category, search } = req.query;
-
-                // Convert to numbers
-                page = Number(page);
-                limit = Number(limit);
-
-                if (isNaN(page) || page < 1) page = 1;
-                if (isNaN(limit) || limit < 1) limit = 6;
-
-                // Construct the query object
-                const query = {};
-                if (category && category !== 'All Categories') {
-                    query.category = category;
-                }
-
-                if (search) {
-                    query.$or = [
-                        { name: { $regex: search, $options: 'i' } },
-                        { genericName: { $regex: search, $options: 'i' } },
-                        { company: { $regex: search, $options: 'i' } },
-                    ];
-                }
-
-                // Sorting logic
-                const sortOptions = {
-                    priceLow: { price: 1 },
-                    priceHigh: { price: -1 },
-                }[sortBy] || {};
-
-                // Fetch data from MongoDB
-                const medicines = await medicineCollection
-                    .find(query)
-                    .sort(sortOptions)
-                    .limit(limit)
-                    .skip((page - 1) * limit)
-                    .toArray();
-
-                const total = await medicineCollection.countDocuments(query);
-
-                console.log('got the query and total', total, query, page, limit);
-
-
-                res.json({
-                    data: medicines,
-                    totalPages: Math.ceil(total / limit),
-                    currentPage: page,
-                });
-
-            } catch (error) {
-                console.error('Error fetching medicines:', error);
-                res.status(500).json({ error: 'Internal Server Error' });
-            }
-        });
-
-
-
 
         // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
