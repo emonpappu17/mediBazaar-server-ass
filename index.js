@@ -29,6 +29,7 @@ async function run() {
         const advertiseCollection = db.collection('advertisements')
         const categoryCollection = db.collection('categories')
         const medicineCollection = db.collection('medicines')
+        const cartCollection = db.collection('carts')
 
         // Storing user to DB
         app.post('/users', async (req, res) => {
@@ -123,6 +124,46 @@ async function run() {
                 totalPages: Math.ceil(total / limit),
             });
         })
+
+        // Adding medicine to cart
+        app.post('/cart', async (req, res) => {
+            const { email, medicineId, name, image, price, discount, quantity } = req.body;
+            const finalPrice = price - (price * (discount / 100));
+            const existingCart = await cartCollection.findOne({ email })
+
+            if (existingCart) {
+                const itemIndex = existingCart.items.findIndex(item => item.medicineId === medicineId);
+                if (itemIndex > -1) {
+                    existingCart.items[itemIndex].quantity += quantity; //increase its quantity
+                } else {
+                    existingCart.items.push({ medicineId, name, image, price, discount, finalPrice, quantity })
+                }
+                await cartCollection.updateOne(
+                    { email },
+                    { $set: { items: existingCart.items, updatedAt: new Date() } });
+                return res.send({ message: "Cart updated successfully" })
+            } else {
+                const newCart = {
+                    email,
+                    items: [{ medicineId, name, image, price, discount, finalPrice, quantity }],
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                };
+                await cartCollection.insertOne(newCart);
+                return res.send({ message: "Cart created successfully" })
+            }
+        })
+
+        // Get Cart Items for a User
+        app.get('/cart/:email', async (req, res) => {
+            const { email } = req.params;
+            const cart = await cartCollection.findOne({ email });
+            if (!cart) return res.send({ items: [], totalPrice: 0 });
+            const totalPrice = cart.items.reduce((sum, item) => sum + (item.finalPrice * item.quantity), 0);
+            res.send({ items: cart.items, totalPrice });
+        })
+
+
 
         // final look
         // app.get('/medicines', async (req, res) => {
