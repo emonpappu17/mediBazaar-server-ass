@@ -157,13 +157,42 @@ async function run() {
         // Get Cart Items for a User
         app.get('/cart/:email', async (req, res) => {
             const { email } = req.params;
+            console.log('yes hitted', email);
+
             const cart = await cartCollection.findOne({ email });
             if (!cart) return res.send({ items: [], totalPrice: 0 });
             const totalPrice = cart.items.reduce((sum, item) => sum + (item.finalPrice * item.quantity), 0);
-            res.send({ items: cart.items, totalPrice });
+            const totalQuantity = cart.items.reduce((sum, item) => sum + item.quantity, 0)
+            console.log('totalQuantity', totalQuantity);
+
+            res.send({ items: cart.items, totalPrice, totalQuantity });
         })
 
+        //Update Cart Item quantity
+        app.patch('/cart/:email', async (req, res) => {
+            const { email } = req.params;
+            const { medicineId, quantity } = req.body;
+            console.log('from patch cart', email, medicineId, quantity);
 
+
+            const cart = await cartCollection.findOne({ email });
+            if (!cart) return res.send({ message: "Cart not found" })
+
+            const itemIndex = cart.items.findIndex(item => item.medicineId === medicineId);
+            if (itemIndex > -1) {
+                // console.log(cart.items[itemIndex].quantity);
+                cart.items[itemIndex].quantity = quantity;
+            } else {
+                return res.send({ message: "Item not found in cart" })
+            }
+            await cartCollection.updateOne({ email }, {
+                $set: {
+                    items: cart.items,
+                    updatedAt: new Date()
+                }
+            })
+            res.send({ message: "Cart item updated successfully" })
+        })
 
         // final look
         // app.get('/medicines', async (req, res) => {
