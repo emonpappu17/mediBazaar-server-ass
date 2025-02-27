@@ -125,6 +125,21 @@ async function run() {
             });
         })
 
+        // Get all Category based Medicines
+        app.get('/medicines/category/:categoryName', async (req, res) => {
+            try {
+                let { categoryName } = req.params;
+                console.log('categoryName', categoryName);
+
+                const query = { category: categoryName };
+                const medicines = await medicineCollection.find(query).toArray();
+                res.send(medicines)
+            } catch (err) {
+                console.log(err);
+            }
+        })
+
+
         // Adding medicine to cart
         app.post('/cart', async (req, res) => {
             const { email, medicineId, name, image, price, discount, quantity } = req.body;
@@ -201,12 +216,25 @@ async function run() {
                 console.log(email, medicineId);
                 const result = await cartCollection.updateOne({ email }, { $pull: { items: { medicineId } } });
                 res.send(result)
-
             }
             catch (err) {
                 console.log(err);
             }
         })
+
+        // Clear Entire Cart
+        app.delete('/cart/:email', async (req, res) => {
+            try {
+                const { email } = req.params;
+                console.log('clear cart', email);
+
+                const result = await cartCollection.deleteOne({ email });
+                res.send(result)
+            } catch (err) {
+                console.log("Error clearing cart:", err);
+            }
+        })
+
 
         // final look
         // app.get('/medicines', async (req, res) => {
