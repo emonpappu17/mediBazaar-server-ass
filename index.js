@@ -3,6 +3,8 @@ const app = express();
 require('dotenv').config()
 const cors = require('cors');
 const { MongoClient, ServerApiVersion } = require('mongodb');
+const jwt = require('jsonwebtoken');
+
 
 const port = 8000;
 
@@ -30,6 +32,13 @@ async function run() {
         const categoryCollection = db.collection('categories')
         const medicineCollection = db.collection('medicines')
         const cartCollection = db.collection('carts')
+
+        // JWT api
+        app.post('jwt', async (req, res) => {
+            const user = req.body;
+            const token = jwt.sign({}, 'secret', { expiresIn: '1h' });
+            res.send({ token });
+        })
 
         // Storing user to DB
         app.post('/users', async (req, res) => {
@@ -129,10 +138,22 @@ async function run() {
         app.get('/medicines/category/:categoryName', async (req, res) => {
             try {
                 let { categoryName } = req.params;
-                console.log('categoryName', categoryName);
-
+                const { sortBy, search } = req.query;
                 const query = { category: categoryName };
-                const medicines = await medicineCollection.find(query).toArray();
+                if (search) {
+                    query.$or = [
+                        { name: { $regex: search, $options: 'i' } },
+                        { genericName: { $regex: search, $options: 'i' } },
+                        { company: { $regex: search, $options: 'i' } },
+                    ];
+                }
+                const sortOptions = {
+                    priceLow: { price: 1 },
+                    priceHigh: { price: -1 },
+                }[sortBy] || {}
+
+                console.log('query', query, search, sortBy, sortOptions);
+                const medicines = await medicineCollection.find(query).sort(sortOptions).toArray();
                 res.send(medicines)
             } catch (err) {
                 console.log(err);
@@ -213,7 +234,6 @@ async function run() {
         app.delete('/cart/:email/:medicineId', async (req, res) => {
             try {
                 const { email, medicineId } = req.params;
-                console.log(email, medicineId);
                 const result = await cartCollection.updateOne({ email }, { $pull: { items: { medicineId } } });
                 res.send(result)
             }
@@ -226,7 +246,6 @@ async function run() {
         app.delete('/cart/:email', async (req, res) => {
             try {
                 const { email } = req.params;
-                console.log('clear cart', email);
 
                 const result = await cartCollection.deleteOne({ email });
                 res.send(result)
