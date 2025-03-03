@@ -34,11 +34,28 @@ async function run() {
         const cartCollection = db.collection('carts')
 
         // JWT api
-        app.post('jwt', async (req, res) => {
+        app.post('/jwt', async (req, res) => {
             const user = req.body;
-            const token = jwt.sign({}, 'secret', { expiresIn: '1h' });
+            const token = jwt.sign({ user }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
             res.send({ token });
         })
+
+        //verify middlewares
+        const verifyToken = (req, res, next) => {
+            const token = req.headers.authorization?.split(" ")[1];
+            console.log('i am token', token);
+
+            if (!token) {
+                return res.status(401).send({ message: "Unauthorized: No token provided" })
+            }
+            jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+                if (err) {
+                    return res.status(403).send({ message: "Unauthorized: Invalid token" })
+                }
+                req.user = decoded;
+                next();
+            });
+        };
 
         // Storing user to DB
         app.post('/users', async (req, res) => {
@@ -152,7 +169,7 @@ async function run() {
                     priceHigh: { price: -1 },
                 }[sortBy] || {}
 
-                console.log('query', query, search, sortBy, sortOptions);
+                // console.log('query', query, search, sortBy, sortOptions);
                 const medicines = await medicineCollection.find(query).sort(sortOptions).toArray();
                 res.send(medicines)
             } catch (err) {
@@ -162,7 +179,9 @@ async function run() {
 
 
         // Adding medicine to cart
-        app.post('/cart', async (req, res) => {
+        app.post('/cart', verifyToken, async (req, res) => {
+            console.log('yes i am successfully hitted');
+
             const { email, medicineId, name, image, price, discount, quantity } = req.body;
             const finalPrice = price - (price * (discount / 100));
             const existingCart = await cartCollection.findOne({ email })
@@ -191,9 +210,9 @@ async function run() {
         })
 
         // Get Cart Items for a User
-        app.get('/cart/:email', async (req, res) => {
+        app.get('/cart/:email', verifyToken, async (req, res) => {
             const { email } = req.params;
-            // console.log('yes hitted', email);
+            console.log('yes hitted', email);
 
             const cart = await cartCollection.findOne({ email });
             if (!cart) return res.send({ items: [], totalPrice: 0 });
@@ -205,7 +224,7 @@ async function run() {
         })
 
         //Update Cart Item quantity
-        app.patch('/cart/:email', async (req, res) => {
+        app.patch('/cart/:email', verifyToken, async (req, res) => {
             const { email } = req.params;
             const { medicineId, quantity } = req.body;
             // console.log('from patch cart', email, medicineId, quantity);
@@ -231,7 +250,7 @@ async function run() {
         })
 
         // Remove an Item from Cart
-        app.delete('/cart/:email/:medicineId', async (req, res) => {
+        app.delete('/cart/:email/:medicineId', verifyToken, async (req, res) => {
             try {
                 const { email, medicineId } = req.params;
                 const result = await cartCollection.updateOne({ email }, { $pull: { items: { medicineId } } });
@@ -243,7 +262,7 @@ async function run() {
         })
 
         // Clear Entire Cart
-        app.delete('/cart/:email', async (req, res) => {
+        app.delete('/cart/:email', verifyToken, async (req, res) => {
             try {
                 const { email } = req.params;
 
