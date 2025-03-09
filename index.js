@@ -5,7 +5,6 @@ const cors = require('cors');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const jwt = require('jsonwebtoken');
 
-
 const port = 8000;
 
 // middleware
@@ -40,10 +39,10 @@ async function run() {
             res.send({ token });
         })
 
-        //verify middlewares
+        //verify token middlewares
         const verifyToken = (req, res, next) => {
             const token = req.headers.authorization?.split(" ")[1];
-            console.log('i am token', token);
+            // console.log('i am token', token);
 
             if (!token) {
                 return res.status(401).send({ message: "Unauthorized: No token provided" })
@@ -69,9 +68,37 @@ async function run() {
             }
 
             // Adding new user to db
-            const newUser = { ...user, createdAt: new Date() };
+            const newUser = { ...user, createdAt: Date.now() };
             const result = await userCollection.insertOne(newUser)
             return res.send(result);
+        })
+
+        // Get a user info by email from db
+        app.get('/user/:email', verifyToken, async (req, res) => {
+            const email = req.params.email
+            const result = await userCollection.findOne({ email })
+            res.send(result)
+        })
+
+        // Get all users data form db
+        app.get('/users', verifyToken, async (req, res) => {
+            const result = await userCollection.find().toArray()
+            res.send(result)
+        })
+
+        // Updating user role
+        app.patch('/users/:email', verifyToken, async (req, res) => {
+            const email = req.params.email;
+            const { role } = req.body;
+            // console.log('Updating user role', email, role);
+            const filter = { email: email };
+            const updatedDoc = {
+                $set: {
+                    role: role
+                }
+            }
+            const result = await userCollection.updateOne(filter, updatedDoc)
+            res.send(result)
         })
 
         // Get all advertised medicines
@@ -82,8 +109,40 @@ async function run() {
 
         // Get All Categories
         app.get('/categories', async (req, res) => {
-            const result = await categoryCollection.find().toArray();
-            return res.send(result)
+            try {
+                // Fetch all categories from categoryCollection (excluding the hardcoded medicineCount)
+                const categories = await categoryCollection.find({}, { projection: { categoryName: 1, categoryImage: 1 } }).toArray();
+
+                // // Fetch medicine counts grouped by category from medicineCollection
+                const medicineCounts = await medicineCollection.aggregate([
+                    {
+                        $group: {
+                            _id: "$category", // Group by category name
+                            medicineCount: { $sum: 1 } // Count medicines in each category
+                        }
+                    }
+                ]).toArray();
+
+                // // Create a mapping of category names to actual medicine count
+                const medicineCountMap = {};
+
+                medicineCounts.forEach(({ _id, medicineCount }) => {
+                    medicineCountMap[_id] = medicineCount;
+                });
+
+                // Merge actual medicine count into category data
+                const enrichedCategories = categories.map(category => ({
+                    ...category,
+                    medicineCount: medicineCountMap[category.categoryName] || 0 // Default 0 if no medicines
+                }));
+
+                return res.send(enrichedCategories)
+                // res.json(enrichedCategories);
+
+            } catch (error) {
+                console.error("Error fetching categories with medicine count:", error);
+                res.status(500).json({ error: "Internal Server Error" });
+            }
         })
 
         // Get Discounted Products (Filtered)
@@ -177,10 +236,9 @@ async function run() {
             }
         })
 
-
         // Adding medicine to cart
         app.post('/cart', verifyToken, async (req, res) => {
-            console.log('yes i am successfully hitted');
+            // console.log('yes i am successfully hitted');
 
             const { email, medicineId, name, image, price, discount, quantity } = req.body;
             const finalPrice = price - (price * (discount / 100));
