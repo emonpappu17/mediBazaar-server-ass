@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 require('dotenv').config()
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 
 const port = 8000;
@@ -107,11 +107,22 @@ async function run() {
             return res.send(result)
         })
 
+        // Adding Category
+        app.post('/categories', verifyToken, async (req, res) => {
+            const category = req.body;
+            const newCategory = { ...category, createdAt: Date.now() }
+            // console.log('category', category);
+
+            const result = await categoryCollection.insertOne(newCategory);
+            res.send(result)
+        })
+
         // Get All Categories
         app.get('/categories', async (req, res) => {
             try {
                 // Fetch all categories from categoryCollection (excluding the hardcoded medicineCount)
-                const categories = await categoryCollection.find({}, { projection: { categoryName: 1, categoryImage: 1 } }).toArray();
+                const categories = await categoryCollection.find().toArray();
+                // const categories = await categoryCollection.find({}, { projection: { categoryName: 1, categoryImage: 1 } }).toArray();
 
                 // // Fetch medicine counts grouped by category from medicineCollection
                 const medicineCounts = await medicineCollection.aggregate([
@@ -142,6 +153,19 @@ async function run() {
             } catch (error) {
                 console.error("Error fetching categories with medicine count:", error);
                 res.status(500).json({ error: "Internal Server Error" });
+            }
+        })
+
+        // Delete Category
+        app.delete('/categories/:id', verifyToken, async (req, res) => {
+            try {
+                const id = req.params.id
+                console.log('new id', id);
+                const query = { _id: new ObjectId(id) }
+                const result = await categoryCollection.deleteOne(query)
+                res.send(result)
+            } catch (err) {
+                console.log("Error deleting the category:", err);
             }
         })
 
