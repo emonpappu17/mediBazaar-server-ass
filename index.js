@@ -107,9 +107,31 @@ async function run() {
             return res.send(result)
         })
 
+        // Getting seller specific medicine name
+        app.get('/sellerMedicine/:email', async (req, res) => {
+            const email = req.params.email
+            console.log('sellerMedicine hti', email);
+            // const result = await medicineCollection.find({ sellerEmail: email }, { name: 1 }).toArray()
+            const result = await medicineCollection.find({ sellerEmail: email }, { projection: { name: 1 } }).toArray()
+            res.send(result)
+
+        })
+
         // Adding Category
         app.post('/categories', verifyToken, async (req, res) => {
             const category = req.body;
+
+            const categoryName = category.categoryName.trim().toLowerCase();
+            console.log('categoryName', categoryName);
+
+            // checking if user already exists
+            const isExist = await categoryCollection.findOne({ categoryName: { $regex: categoryName, $options: 'i' } })
+            console.log('isExist', isExist);
+
+            if (isExist) {
+                return res.send({ message: 'This category name already exists!' })
+            }
+
             const newCategory = { ...category, createdAt: Date.now() }
             // console.log('category', category);
 
@@ -122,9 +144,8 @@ async function run() {
             try {
                 // Fetch all categories from categoryCollection (excluding the hardcoded medicineCount)
                 const categories = await categoryCollection.find().toArray();
-                // const categories = await categoryCollection.find({}, { projection: { categoryName: 1, categoryImage: 1 } }).toArray();
 
-                // // Fetch medicine counts grouped by category from medicineCollection
+                // Fetch medicine counts grouped by category from medicineCollection
                 const medicineCounts = await medicineCollection.aggregate([
                     {
                         $group: {
@@ -134,7 +155,7 @@ async function run() {
                     }
                 ]).toArray();
 
-                // // Create a mapping of category names to actual medicine count
+                // Create a mapping of category names to actual medicine count
                 const medicineCountMap = {};
 
                 medicineCounts.forEach(({ _id, medicineCount }) => {
@@ -160,12 +181,37 @@ async function run() {
         app.delete('/categories/:id', verifyToken, async (req, res) => {
             try {
                 const id = req.params.id
-                console.log('new id', id);
+                // console.log('new id', id);
                 const query = { _id: new ObjectId(id) }
                 const result = await categoryCollection.deleteOne(query)
                 res.send(result)
             } catch (err) {
                 console.log("Error deleting the category:", err);
+            }
+        })
+
+        // Updating Category
+        app.put('/categories/:id', verifyToken, async (req, res) => {
+            const id = req.params.id
+            const data = req.body;
+            console.log('update data and id', id, data);
+            const query = { _id: new ObjectId(id) }
+            try {
+                const category = await categoryCollection.findOne(query)
+                // console.log('category', category);
+
+                if (!category) {
+                    return res.send({ message: 'Category not found' })
+                }
+                const result = await categoryCollection.updateOne(query, {
+                    $set: {
+                        ...data,
+                        updatedAt: Date.now()
+                    }
+                })
+                res.send(result);
+            } catch (err) {
+                console.log(err);
             }
         })
 
@@ -354,65 +400,6 @@ async function run() {
                 console.log("Error clearing cart:", err);
             }
         })
-
-
-        // final look
-        // app.get('/medicines', async (req, res) => {
-        //     try {
-        //         let { page = 1, limit = 6, sortBy, category, search } = req.query;
-
-        //         // Convert to numbers
-        //         page = Number(page);
-        //         limit = Number(limit);
-
-        //         if (isNaN(page) || page < 1) page = 1;
-        //         if (isNaN(limit) || limit < 1) limit = 6;
-
-        //         // Construct the query object
-        //         const query = {};
-        //         if (category && category !== 'All Categories') {
-        //             query.category = category;
-        //         }
-
-        //         if (search) {
-        //             query.$or = [
-        //                 { name: { $regex: search, $options: 'i' } },
-        //                 { genericName: { $regex: search, $options: 'i' } },
-        //                 { company: { $regex: search, $options: 'i' } },
-        //             ];
-        //         }
-
-        //         // Sorting logic
-        //         const sortOptions = {
-        //             priceLow: { price: 1 },
-        //             priceHigh: { price: -1 },
-        //         }[sortBy] || {};
-
-        //         // Fetch data from MongoDB
-        //         const medicines = await medicineCollection
-        //             .find(query)
-        //             .sort(sortOptions)
-        //             .limit(limit)
-        //             .skip((page - 1) * limit)
-        //             .toArray();
-
-        //         const total = await medicineCollection.countDocuments(query);
-
-        //         console.log('got the query and total', total, query, page, limit);
-
-
-        //         res.json({
-        //             data: medicines,
-        //             totalPages: Math.ceil(total / limit),
-        //             currentPage: page,
-        //         });
-
-        //     } catch (error) {
-        //         console.error('Error fetching medicines:', error);
-        //         res.status(500).json({ error: 'Internal Server Error' });
-        //     }
-        // });
-
         // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
