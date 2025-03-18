@@ -117,6 +117,18 @@ async function run() {
 
         })
 
+        // Adding Advertisements
+        app.post('/advertisements', async (req, res) => {
+            const data = req.body;
+            console.log('advertisements data', data);
+            const newAdd = {
+                ...data,
+                createdAt: Date.now()
+            }
+            const result = await advertiseCollection.insertOne(newAdd)
+            res.send(result);
+        })
+
         // Adding Category
         app.post('/categories', verifyToken, async (req, res) => {
             const category = req.body;
