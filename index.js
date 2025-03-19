@@ -107,8 +107,14 @@ async function run() {
             return res.send(result)
         })
 
+        // Get all advertised
+        app.get('/advertisements', async (req, res) => {
+            const result = await advertiseCollection.find().toArray();
+            return res.send(result)
+        })
+
         // Getting seller specific medicine name
-        app.get('/sellerMedicine/:email', async (req, res) => {
+        app.get('/sellerMedicine/:email', verifyToken, async (req, res) => {
             const email = req.params.email
             console.log('sellerMedicine hti', email);
             // const result = await medicineCollection.find({ sellerEmail: email }, { name: 1 }).toArray()
@@ -118,7 +124,7 @@ async function run() {
         })
 
         // Adding Advertisements
-        app.post('/advertisements', async (req, res) => {
+        app.post('/advertisements', verifyToken, async (req, res) => {
             const data = req.body;
             console.log('advertisements data', data);
             const newAdd = {
@@ -127,6 +133,34 @@ async function run() {
             }
             const result = await advertiseCollection.insertOne(newAdd)
             res.send(result);
+        })
+
+        // Delete Advertisement
+        app.delete('/advertisements/:id', verifyToken, async (req, res) => {
+            try {
+                const id = req.params.id
+                // console.log('new id', id);
+                const query = { _id: new ObjectId(id) }
+                const result = await advertiseCollection.deleteOne(query)
+                res.send(result)
+            } catch (err) {
+                console.log("Error deleting the category:", err);
+            }
+        })
+        // Update status Advertisement
+        app.patch('/advertisements/:id', verifyToken, async (req, res) => {
+            try {
+                const id = req.params.id;
+                const { status } = req.body;
+                console.log('status', status);
+
+                // console.log('new id', id);
+                const query = { _id: new ObjectId(id) }
+                const result = await advertiseCollection.updateOne(query, { $set: { status } })
+                res.send(result)
+            } catch (err) {
+                console.log("Error deleting the category:", err);
+            }
         })
 
         // Adding Category
