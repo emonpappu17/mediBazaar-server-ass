@@ -101,26 +101,61 @@ async function run() {
             res.send(result)
         })
 
-        // Get all advertised medicines
-        app.get('/advertised-medicines', async (req, res) => {
-            const result = await advertiseCollection.find().toArray();
-            return res.send(result)
-        })
-
-        // Get all advertised
+        // Get all advertisement (Admin and Seller)
         app.get('/advertisements', async (req, res) => {
-            const result = await advertiseCollection.find().toArray();
-            return res.send(result)
+            const { sellerEmail } = req.query;
+            if (sellerEmail) {
+                // Fetch Seller's advertisements and count statuses
+                const sellerAds = await advertiseCollection.find({ sellerEmail: sellerEmail }).toArray();
+
+                const statusCounts = await advertiseCollection.aggregate([{
+                    $match: { sellerEmail: sellerEmail }
+                }, {
+                    $group: {
+                        _id: "$status",
+                        count: { $sum: 1 }
+                    }
+                }]).toArray();
+
+                const counts = {
+                    approved: statusCounts.find(s => s._id === 'Approved')?.count || 0,
+                    rejected: statusCounts.find(s => s._id === 'Rejected')?.count || 0,
+                    pending: statusCounts.find(s => s._id === 'Pending')?.count || 0
+                }
+
+                return res.send({ advertisements: sellerAds, counts })
+            }
+
+            // Fetch all advertisements and count statuses for Admin
+            const statusCounts = await advertiseCollection.aggregate([{
+                $group: {
+                    _id: "$status",
+                    count: { $sum: 1 }
+                }
+            }]).toArray();
+
+            const counts = {
+                approved: statusCounts.find(s => s._id === 'Approved')?.count || 0,
+                rejected: statusCounts.find(s => s._id === 'Rejected')?.count || 0,
+                pending: statusCounts.find(s => s._id === 'Pending')?.count || 0,
+            }
+
+            const allAdds = await advertiseCollection.find().toArray();
+            return res.send({ advertisements: allAdds, counts })
         })
 
-        // Getting seller specific medicine name
+        // Get approved for banner (Banner)
+        app.get('/advertisements/approved', async (req, res) => {
+            const approvedAds = await advertiseCollection.find({ status: "Approved" }).toArray();
+            res.send(approvedAds)
+        })
+
+        // Getting seller specific medicine name (Seller)
         app.get('/sellerMedicine/:email', verifyToken, async (req, res) => {
             const email = req.params.email
-            console.log('sellerMedicine hti', email);
-            // const result = await medicineCollection.find({ sellerEmail: email }, { name: 1 }).toArray()
+            // console.log(email);
             const result = await medicineCollection.find({ sellerEmail: email }, { projection: { name: 1 } }).toArray()
             res.send(result)
-
         })
 
         // Adding Advertisements
@@ -147,6 +182,7 @@ async function run() {
                 console.log("Error deleting the category:", err);
             }
         })
+
         // Update status Advertisement
         app.patch('/advertisements/:id', verifyToken, async (req, res) => {
             try {
@@ -166,9 +202,10 @@ async function run() {
         // Adding Category
         app.post('/categories', verifyToken, async (req, res) => {
             const category = req.body;
+            console.log('category', category);
 
             const categoryName = category.categoryName.trim().toLowerCase();
-            console.log('categoryName', categoryName);
+            // console.log('categoryName', categoryName);
 
             // checking if user already exists
             const isExist = await categoryCollection.findOne({ categoryName: { $regex: categoryName, $options: 'i' } })
