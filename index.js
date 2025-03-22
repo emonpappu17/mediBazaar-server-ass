@@ -35,7 +35,7 @@ async function run() {
         // JWT api
         app.post('/jwt', async (req, res) => {
             const user = req.body;
-            const token = jwt.sign({ user }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+            const token = jwt.sign({ user }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '7h' });
             res.send({ token });
         })
 
@@ -155,6 +155,13 @@ async function run() {
             const email = req.params.email
             // console.log(email);
             const result = await medicineCollection.find({ sellerEmail: email }, { projection: { name: 1 } }).toArray()
+            res.send(result)
+        })
+        // Getting seller specific all medicine  (Seller)
+        app.get('/sellerAllMedicine/:email', verifyToken, async (req, res) => {
+            const email = req.params.email
+            // console.log(email);
+            const result = await medicineCollection.find({ sellerEmail: email }).toArray()
             res.send(result)
         })
 
@@ -361,6 +368,60 @@ async function run() {
                 data: medicines,
                 totalPages: Math.ceil(total / limit),
             });
+        })
+
+        app.post('/medicines', async (req, res) => {
+            const data = req.body;
+            const medicineName = data.name.trim().toLowerCase();
+
+            // checking if user already exists
+            const isExist = await medicineCollection.findOne({ name: { $regex: medicineName, $options: 'i' } })
+
+            if (isExist) {
+                return res.send({ message: 'This medicine name already exists!' })
+            }
+
+            const newMedicine = { ...data, createdAt: Date.now() }
+
+            const result = await medicineCollection.insertOne(newMedicine);
+            res.send(result)
+        })
+
+        // Updating Category
+        app.put('/medicines/:id', verifyToken, async (req, res) => {
+            const id = req.params.id
+            const data = req.body;
+            const query = { _id: new ObjectId(id) }
+            try {
+                const medicine = await medicineCollection.findOne(query)
+                // console.log('category', category);
+
+                if (!medicine) {
+                    return res.send({ message: 'Medicine not found' })
+                }
+                const result = await medicineCollection.updateOne(query, {
+                    $set: {
+                        ...data,
+                        updatedAt: Date.now()
+                    }
+                })
+                res.send(result);
+            } catch (err) {
+                console.log(err);
+            }
+        })
+
+        // Delete Medicine
+        app.delete('/medicines/:id', verifyToken, async (req, res) => {
+            try {
+                const id = req.params.id
+                // console.log('new id', id);
+                const query = { _id: new ObjectId(id) }
+                const result = await medicineCollection.deleteOne(query)
+                res.send(result)
+            } catch (err) {
+                console.log("Error deleting the category:", err);
+            }
         })
 
         // Get all Category based Medicines
