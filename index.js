@@ -4,6 +4,8 @@ require('dotenv').config()
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
 
 const port = 8000;
 
@@ -31,6 +33,7 @@ async function run() {
         const categoryCollection = db.collection('categories')
         const medicineCollection = db.collection('medicines')
         const cartCollection = db.collection('carts')
+        const paymentsCollection = db.collection('payments')
 
         // JWT api
         app.post('/jwt', async (req, res) => {
@@ -284,7 +287,7 @@ async function run() {
         app.put('/categories/:id', verifyToken, async (req, res) => {
             const id = req.params.id
             const data = req.body;
-            console.log('update data and id', id, data);
+
             const query = { _id: new ObjectId(id) }
             try {
                 const category = await categoryCollection.findOne(query)
@@ -454,7 +457,7 @@ async function run() {
         app.post('/cart', verifyToken, async (req, res) => {
             // console.log('yes i am successfully hitted');
 
-            const { email, medicineId, name, image, price, discount, quantity } = req.body;
+            const { email, medicineId, name, image, price, discount, sellerEmail, quantity } = req.body;
             const finalPrice = price - (price * (discount / 100));
             const existingCart = await cartCollection.findOne({ email })
 
@@ -463,7 +466,7 @@ async function run() {
                 if (itemIndex > -1) {
                     existingCart.items[itemIndex].quantity += quantity; //increase its quantity
                 } else {
-                    existingCart.items.push({ medicineId, name, image, price, discount, finalPrice, quantity })
+                    existingCart.items.push({ medicineId, name, image, price, discount, finalPrice, sellerEmail, quantity })
                 }
                 await cartCollection.updateOne(
                     { email },
@@ -472,7 +475,7 @@ async function run() {
             } else {
                 const newCart = {
                     email,
-                    items: [{ medicineId, name, image, price, discount, finalPrice, quantity }],
+                    items: [{ medicineId, name, image, price, discount, finalPrice, sellerEmail, quantity }],
                     createdAt: new Date(),
                     updatedAt: new Date()
                 };
@@ -484,14 +487,13 @@ async function run() {
         // Get Cart Items for a User
         app.get('/cart/:email', verifyToken, async (req, res) => {
             const { email } = req.params;
-            console.log('yes hitted', email);
+            // console.log('yes hitted', email);
 
             const cart = await cartCollection.findOne({ email });
             if (!cart) return res.send({ items: [], totalPrice: 0 });
             const totalPrice = cart.items.reduce((sum, item) => sum + (item.finalPrice * item.quantity), 0);
             const totalQuantity = cart.items.reduce((sum, item) => sum + item.quantity, 0)
             // console.log('totalQuantity', totalQuantity);
-
             res.send({ items: cart.items, totalPrice, totalQuantity });
         })
 
@@ -542,6 +544,59 @@ async function run() {
                 res.send(result)
             } catch (err) {
                 console.log("Error clearing cart:", err);
+            }
+        })
+
+        // Stipe payment
+        app.post('/create-payment-intent', async (req, res) => {
+            try {
+                const { amount } = req.body;
+                // console.log('amount', amount);
+
+                if (!amount || amount < 1) {
+                    return res.status(400).json({ error: "Invalid amount" });
+                }
+                const paymentIntent = await stripe.paymentIntents.create({
+                    amount: Math.round(amount * 100),
+                    currency: 'usd',
+                    payment_method_types: ['card'],
+                })
+                res.send({
+                    clientSecret: paymentIntent.client_secret
+                })
+            } catch (err) {
+                console.log("Stripe Payment Error:", err);
+            }
+        })
+
+        // Payments
+        app.post('/payments', async (req, res) => {
+            try {
+                const { userEmail, items, totalAmount, transactionId } = req.body;
+                const paymentRecord = {
+                    userEmail,
+                    items,
+                    totalAmount,
+                    transactionId,
+                    paymentStatus: 'Pending',
+                    paymentMethod: "Stripe",
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                    adminApproved: false,
+                    sellerReceived: false,
+                }
+
+                const result = await paymentsCollection.insertOne(paymentRecord);
+                if (result.insertedId) {
+                    //  Remove cart items after successful payment
+                    await cartCollection.deleteOne({ email: userEmail })
+                    res.send({ success: true, message: "Payment recorded successfully" })
+                } else {
+                    res.status(500).send({ success: false, message: "Failed to save payment" });
+                }
+
+            } catch (err) {
+                console.log("Error saving payment:", err);
             }
         })
         // await client.db("admin").command({ ping: 1 });
