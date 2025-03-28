@@ -376,7 +376,7 @@ async function run() {
             });
         })
 
-        app.post('/medicines', async (req, res) => {
+        app.post('/medicines', verifyToken, async (req, res) => {
             const data = req.body;
             const medicineName = data.name.trim().toLowerCase();
 
@@ -573,11 +573,13 @@ async function run() {
         })
 
         // Payments
-        app.post('/payments', async (req, res) => {
+        app.post('/payments', verifyToken, async (req, res) => {
             try {
-                const { userEmail, items, totalAmount, transactionId } = req.body;
+                const { useName, userEmail, address, items, totalAmount, transactionId } = req.body;
                 const paymentRecord = {
+                    useName,
                     userEmail,
+                    address,
                     items,
                     totalAmount,
                     transactionId,
@@ -588,6 +590,8 @@ async function run() {
                     adminApproved: false,
                     sellerReceived: false,
                 }
+                console.log('items', items);
+
 
                 const result = await paymentsCollection.insertOne(paymentRecord);
                 if (result.insertedId) {
@@ -604,11 +608,9 @@ async function run() {
         })
 
         // Get payment fo invoice
-        app.get('/payments/:id', async (req, res) => {
+        app.get('/payments/:id', verifyToken, async (req, res) => {
             const { id } = req.params;
             const transactionId = id;
-            console.log('transactionId', transactionId);
-
             const payment = await paymentsCollection.findOne({ transactionId });
             res.send(payment)
         })
