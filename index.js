@@ -3,8 +3,11 @@ const app = express();
 require('dotenv').config()
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const puppeteer = require('puppeteer');
+
 const jwt = require('jsonwebtoken');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
 
 
 const port = 8000;
@@ -598,6 +601,16 @@ async function run() {
             } catch (err) {
                 console.log("Error saving payment:", err);
             }
+        })
+
+        // Get payment fo invoice
+        app.get('/payments/:id', async (req, res) => {
+            const { id } = req.params;
+            const transactionId = id;
+            console.log('transactionId', transactionId);
+
+            const payment = await paymentsCollection.findOne({ transactionId });
+            res.send(payment)
         })
         // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
