@@ -590,8 +590,7 @@ async function run() {
                     adminApproved: false,
                     sellerReceived: false,
                 }
-                console.log('items', items);
-
+                // console.log('items', items);
 
                 const result = await paymentsCollection.insertOne(paymentRecord);
                 if (result.insertedId) {
@@ -613,6 +612,26 @@ async function run() {
             const transactionId = id;
             const payment = await paymentsCollection.findOne({ transactionId });
             res.send(payment)
+        })
+
+        // Seller payment history
+        app.get('/seller-payment/:sellerEmail', async (req, res) => {
+            try {
+                const sellerEmail = req.params.sellerEmail;
+
+                // Fetch orders that contain medicines sold by the given seller
+                const orders = await paymentsCollection.find({ "items.sellerEmail": sellerEmail }).toArray();
+
+                // Extract only relevant medicines while keeping order details intact
+                const filteredOrders = orders.map(({ items, ...order }) => ({
+                    ...order,
+                    items: items.filter(item => item.sellerEmail === sellerEmail)
+                }))
+
+                res.send(filteredOrders)
+            } catch (error) {
+                console.log(error);
+            }
         })
         // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
