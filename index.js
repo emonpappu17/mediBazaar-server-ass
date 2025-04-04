@@ -633,12 +633,41 @@ async function run() {
             }
         })
 
-        // Updating seller received status
+        // Updating seller received
         app.patch('/seller-payment/:id', verifyToken, async (req, res) => {
             try {
                 const { id } = req.params;
                 const filter = { _id: new ObjectId(id) }
-                const result = await paymentsCollection.updateOne(filter, { $set: { sellerReceived: true } })
+                const result = await paymentsCollection.updateOne(filter, { $set: { sellerReceived: true, updatedAt: new Date() } })
+                return res.send(result)
+            } catch (error) {
+                console.log(error);
+            }
+        })
+
+
+        // All payments for admin
+        app.get('/admin-payment-management', async (req, res) => {
+            try {
+                const result = await paymentsCollection.find().toArray();
+                res.send(result)
+            } catch (error) {
+                console.log(error);
+            }
+        })
+
+        // Updating admin accepted
+        app.patch('/admin-payment-management/:id', verifyToken, async (req, res) => {
+            try {
+                const { id } = req.params;
+                const filter = { _id: new ObjectId(id) }
+                const result = await paymentsCollection.updateOne(filter, {
+                    $set: {
+                        adminApproved: true,
+                        updatedAt: new Date(),
+                        paymentStatus: 'Paid'
+                    }
+                })
                 return res.send(result)
             } catch (error) {
                 console.log(error);
