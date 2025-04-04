@@ -506,7 +506,6 @@ async function run() {
             const { medicineId, quantity } = req.body;
             // console.log('from patch cart', email, medicineId, quantity);
 
-
             const cart = await cartCollection.findOne({ email });
             if (!cart) return res.send({ message: "Cart not found" })
 
@@ -615,7 +614,7 @@ async function run() {
         })
 
         // Seller payment history
-        app.get('/seller-payment/:sellerEmail', async (req, res) => {
+        app.get('/seller-payment/:sellerEmail', verifyToken, async (req, res) => {
             try {
                 const sellerEmail = req.params.sellerEmail;
 
@@ -629,6 +628,18 @@ async function run() {
                 }))
 
                 res.send(filteredOrders)
+            } catch (error) {
+                console.log(error);
+            }
+        })
+
+        // Updating seller received status
+        app.patch('/seller-payment/:id', verifyToken, async (req, res) => {
+            try {
+                const { id } = req.params;
+                const filter = { _id: new ObjectId(id) }
+                const result = await paymentsCollection.updateOne(filter, { $set: { sellerReceived: true } })
+                return res.send(result)
             } catch (error) {
                 console.log(error);
             }
