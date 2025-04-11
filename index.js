@@ -649,7 +649,19 @@ async function run() {
         // All payments for admin
         app.get('/admin-payment-management', async (req, res) => {
             try {
-                const result = await paymentsCollection.find().toArray();
+                const { startDate, endDate } = req.query;
+                const query = {}
+                if (startDate && endDate) {
+                    query.createdAt = {
+                        $gte: Number(startDate),
+                        $lte: Number(endDate)
+                        // $gte: new Date(startDate),
+                        // $lte: new Date(endDate)
+                    };
+                }
+                console.log('query', query);
+
+                const result = await paymentsCollection.find(query).toArray();
                 res.send(result)
             } catch (error) {
                 console.log(error);
