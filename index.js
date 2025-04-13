@@ -649,17 +649,31 @@ async function run() {
         // All payments for admin
         app.get('/admin-payment-management', async (req, res) => {
             try {
-                const { startDate, endDate } = req.query;
+                const { startDate, endDate, searchTerm, statusFilter } = req.query;
                 const query = {}
+
+                // Date Filter
                 if (startDate && endDate) {
                     query.createdAt = {
                         $gte: Number(startDate),
                         $lte: Number(endDate)
-                        // $gte: new Date(startDate),
-                        // $lte: new Date(endDate)
                     };
                 }
+
+                // Filter Status
+                if (statusFilter) query.paymentStatus = statusFilter;
+
+                // Search Filter
+                if (searchTerm) {
+                    query.$or = [
+                        { userEmail: { $regex: searchTerm, $options: 'i' } },
+                        { transactionId: { $regex: searchTerm, $options: 'i' } },
+                        { 'items.name': { $regex: searchTerm, $options: 'i' } },
+                    ];
+                }
                 console.log('query', query);
+                console.log('check =>', searchTerm, statusFilter);
+
 
                 const result = await paymentsCollection.find(query).toArray();
                 res.send(result)
