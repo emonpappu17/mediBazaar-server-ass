@@ -697,167 +697,23 @@ async function run() {
         })
 
         app.get('/sellerStats/:email', async (req, res) => {
-            // try {
-            //     const sellerEmail = req.params.email;
-
-            //     // Fetch orders that contain medicines sold by the given seller
-            //     const orders = await paymentsCollection.find({ "items.sellerEmail": sellerEmail }).toArray();
-
-            //     //try
-            //     // const result = await paymentsCollection.aggregate([
-            //     //     { $match: { "items.sellerEmail": sellerEmail } },
-
-            //     //     // Unwind the items array to create a document for each item
-            //     //     { $unwind: "$items" },
-            //     //     { $match: { "items.sellerEmail": sellerEmail } },
-
-            //     //     // Group by medicine name and sum quantities
-            //     //     {
-            //     //         $group: {
-            //     //             _id: "$items.name",
-            //     //             totalQty: { $sum: "$items.quantity" }
-            //     //         }
-            //     //     },
-
-            //     //     // Sort by total quantity in descending order
-            //     //     { $sort: { totalQty: -1 } },
-
-            //     //     // Limit to top 10 results
-            //     //     { $limit: 5 },
-
-            //     //     // Format the output
-            //     //     {
-            //     //         $project: {
-            //     //             _id: 0,
-            //     //             name: "$_id",
-            //     //             qty: "$totalQty"
-            //     //         }
-            //     //     }
-            //     // ]).toArray();
-
-            //     //try 2
-            //     const aggregatedData = await paymentsCollection.aggregate([
-            //         { $match: { "items.sellerEmail": sellerEmail } },
-            //         { $unwind: "$items" },
-            //         { $match: { "items.sellerEmail": sellerEmail } },
-
-            //         {
-            //             $facet: {
-            //                 revenueSummary: [
-            //                     {
-            //                         $group: {
-            //                             _id: null,
-            //                             totalRevenue: {
-            //                                 $sum: {
-            //                                     $cond: [
-            //                                         { $eq: ["$paymentStatus", "Paid"] },
-            //                                         { $multiply: ["$items.finalPrice", "$items.quantity"] },
-            //                                         0
-            //                                     ]
-            //                                 }
-            //                             },
-            //                             pendingRevenue: {
-            //                                 $sum: {
-            //                                     $cond: [
-            //                                         { $eq: ["$paymentStatus", "Pending"] },
-            //                                         { $multiply: ["$items.finalPrice", "$items.quantity"] },
-            //                                         0
-            //                                     ]
-            //                                 }
-            //                             },
-            //                             totalOrders: { $sum: 1 }
-            //                         }
-            //                     },
-            //                     {
-            //                         $project: {
-            //                             _id: 0,
-            //                             totalRevenue: { $round: ["$totalRevenue", 2] },
-            //                             pendingRevenue: { $round: ["$pendingRevenue", 2] },
-            //                             totalOrders: 1
-            //                         }
-            //                     }
-
-            //                 ],
-
-            //                 topSelling: [
-            //                     // { $sort: { qty: -1 } },
-            //                     // { $sort: { "items.quantity": -1 } },
-            //                     {
-            //                         $group: {
-            //                             _id: "$items.name",
-            //                             qty: { $sum: "$items.quantity" },
-            //                             image: { $first: "$items.image" }
-            //                             // image: { $addToSet: "$items.image" }
-            //                         }
-            //                     },
-            //                     { $sort: { qty: -1 } },
-            //                     { $limit: 5 },
-            //                     // {
-            //                     //     $project: {
-            //                     //         _id: 0,
-            //                     //         name: "$_id",
-            //                     //         qty: 1,
-            //                     //         image: 1
-            //                     //     }
-            //                     // }
-            //                 ]
-            //             }
-
-            //         }
-            //     ]).toArray();
-
-            //     console.log('aggregate result', aggregatedData); // sob seller er medicine aisa porse
-
-
-            //     // Extract only relevant medicines while keeping order details intact
-            //     // const filteredOrders = orders.map(({ items, ...order }) => ({
-            //     //     ...order,
-            //     //     items: items.filter(item => item.sellerEmail === sellerEmail)
-            //     // }))
-            //     // const sellerMedicine = await medicineCollection.find({ sellerEmail }).toArray()
-            //     const stockCountResult = await medicineCollection.aggregate([
-            //         { $match: { "sellerEmail": sellerEmail } },
-            //         {
-            //             $group: {
-            //                 _id: null,
-            //                 stockCount: { $sum: "$stock" }
-            //             }
-            //         },
-            //         {
-            //             $project: {
-            //                 _id: 0,
-            //                 stockCount: 1
-            //             }
-            //         }
-            //     ]).toArray()
-            //     console.log('stockCountResult ', stockCountResult);
-
-
-            //     // const totalRevenue = filteredOrders.reduce((sum, p) => sum + (p.paymentStatus === 'Paid' ? p.totalAmount : 0), 0).toFixed(2);
-            //     // const pendingRevenue = filteredOrders.reduce((sum, p) => sum + (p.paymentStatus === 'Pending' ? p.totalAmount : 0), 0).toFixed(2);
-            //     // // const stockCount = sellerMedicine.reduce((sum, m) => sum + (m.stock), 0);
-            //     // const totalOrders = filteredOrders.length || 0
-
-
-            //     res.send({ aggregatedData, stockCountResult })
-            //     // res.send({ filteredOrders, totalRevenue, pendingRevenue, totalOrders, stockCount })
-            // } catch (error) {
-            //     console.log(error);
-            // }
-
-            // try 3
             try {
                 const sellerEmail = req.params.email;
-                console.log('sellerEmail', sellerEmail);
 
-
+                // Step 1: Aggregate seller data from paymentsCollection
                 const [aggregatedData] = await paymentsCollection.aggregate([
+                    // Match documents with the seller's email in any of the items
                     { $match: { "items.sellerEmail": sellerEmail } },
+
+                    // Flatten the items array to handle each item individually
                     { $unwind: "$items" },
+
+                    // Filter again to ensure only the seller's items are considered
                     { $match: { "items.sellerEmail": sellerEmail } },
 
                     {
                         $facet: {
+                            // ---------- 1. Revenue Summary ----------
                             revenueSummary: [
                                 {
                                     $group: {
@@ -893,6 +749,7 @@ async function run() {
                                 }
                             ],
 
+                            // ---------- 2. Top 3 Selling Medicines ----------
                             topSelling: [
                                 {
                                     $group: {
@@ -901,9 +758,8 @@ async function run() {
                                         image: { $first: "$items.image" }
                                     }
                                 },
-                                { $sort: { qty: -1 } },
+                                { $sort: { qty: -1 } }, // Most sold first
                                 { $limit: 3 },
-                                // { $limit: 5 },
                                 {
                                     $project: {
                                         _id: 0,
@@ -912,26 +768,60 @@ async function run() {
                                         image: 1
                                     }
                                 }
+                            ],
+
+                            // ---------- 3. Last 7 Days Revenue ----------
+                            lastSevenDaysRevenue: [
+                                {
+                                    $match: {
+                                        paymentStatus: "Paid", // Only include paid orders
+                                    }
+                                },
+                                {
+                                    $addFields: {
+                                        createdAtDate: { $toDate: "$createdAt" } // Convert to Date if string/timestamp
+                                    }
+                                },
+                                {
+                                    $group: {
+                                        _id: {
+                                            // Human-readable formatted date string
+                                            dateStr: { $dateToString: { format: "%b %d, %Y", date: "$createdAtDate" } },
+                                            // Date object for accurate sorting
+                                            dateObj: {
+                                                $dateTrunc: {
+                                                    date: "$createdAtDate",
+                                                    unit: "day"
+                                                }
+                                            }
+                                        },
+                                        revenue: {
+                                            $sum: { $multiply: ["$items.finalPrice", "$items.quantity"] }
+                                        }
+                                    }
+                                },
+                                {
+                                    $project: {
+                                        _id: 0,
+                                        date: "$_id.dateStr",         // For display
+                                        dateForSort: "$_id.dateObj",  // For sorting
+                                        revenue: { $round: ["$revenue", 2] }
+                                    }
+                                },
+                                {
+                                    $sort: {
+                                        dateForSort: -1 // Sort by latest date first
+                                    }
+                                },
+                                {
+                                    $limit: 7 // Only keep the last 7 days
+                                }
                             ]
                         }
                     }
                 ]).toArray();
 
-                // console.log('aggregatedData', aggregatedData);
-
-                // const recentOrdersWithFind = await paymentsCollection
-                //     .find({ "items.sellerEmail": sellerEmail })
-                //     .sort({ createdAt: -1 })
-                //     .limit(3)
-                //     .toArray();
-
-                // const recentOrders = await paymentsCollection.aggregate([
-                //     { $match: { "items.sellerEmail": sellerEmail } },
-                //     { $sort: { "createdAt": -1 } },
-                //     { $limit: 3 }
-                // ]).toArray()
-
-                // stock count
+                // Step 2: Count total stock from medicines posted by the seller
                 const [stockCountResult] = await medicineCollection.aggregate([
                     { $match: { sellerEmail } },
                     {
@@ -948,219 +838,16 @@ async function run() {
                     }
                 ]).toArray();
 
+                // Optional: Log for debugging
+                // console.log('aggregatedData', aggregatedData.lastSevenDaysRevenue.length);
+
+                // Step 3: Send aggregated data + stock count
                 res.send({ aggregatedData, stockCountResult });
 
             } catch (error) {
                 console.error('Error fetching seller summary:', error);
                 res.status(500).send({ error: 'Server error' });
             }
-
-
-            //with promise
-            // try {
-            //     const sellerEmail = req.params.email;
-
-            //     const [aggregatedData, medicines] = await Promise.all([
-            //         paymentsCollection.aggregate([
-            //             { $match: { "items.sellerEmail": sellerEmail } },
-            //             { $unwind: "$items" },
-            //             { $match: { "items.sellerEmail": sellerEmail } },
-            //             {
-            //                 $group: {
-            //                     _id: null,
-            //                     totalRevenue: {
-            //                         $sum: {
-            //                             $cond: [
-            //                                 { $eq: ["$paymentStatus", "Paid"] },
-            //                                 { $multiply: ["$items.finalPrice", "$items.quantity"] },
-            //                                 0
-            //                             ]
-            //                         }
-            //                     },
-            //                     pendingRevenue: {
-            //                         $sum: {
-            //                             $cond: [
-            //                                 { $eq: ["$paymentStatus", "Pending"] },
-            //                                 { $multiply: ["$items.finalPrice", "$items.quantity"] },
-            //                                 0
-            //                             ]
-            //                         }
-            //                     },
-            //                     totalOrders: { $sum: 1 },
-            //                     topSelling: {
-            //                         $push: {
-            //                             name: "$items.name",
-            //                             qty: "$items.quantity",
-            //                             medicineId: "$items.medicineId",
-            //                             image: "$items.image"
-            //                         }
-            //                     }
-            //                 }
-            //             },
-            //             {
-            //                 $project: {
-            //                     _id: 0,
-            //                     totalRevenue: { $round: ["$totalRevenue", 2] },
-            //                     pendingRevenue: { $round: ["$pendingRevenue", 2] },
-            //                     totalOrders: 1,
-            //                     topSelling: 1
-            //                 }
-            //             }
-            //         ]).toArray(),
-            //         medicineCollection.find({ sellerEmail }).toArray()
-            //     ]);
-
-            //     // Process aggregation results
-            //     const result = aggregatedData[0] || {
-            //         totalRevenue: 0,
-            //         pendingRevenue: 0,
-            //         totalOrders: 0,
-            //         topSelling: []
-            //     };
-
-            //     // Calculate top selling medicines
-            //     const medicineSalesMap = {};
-            //     result.topSelling.forEach(item => {
-            //         if (medicineSalesMap[item.medicineId]) {
-            //             medicineSalesMap[item.medicineId].qty += item.qty;
-            //         } else {
-            //             medicineSalesMap[item.medicineId] = { ...item };
-            //         }
-            //     });
-
-            //     const topSelling = Object.values(medicineSalesMap)
-            //         .sort((a, b) => b.qty - a.qty)
-            //         .slice(0, 5);
-
-            //     // Prepare response
-            //     const response = {
-            //         stats: {
-            //             ...result,
-            //             medicineCount: medicines.length,
-            //             stockCount: medicines.reduce((sum, m) => sum + (m.stock || 0), 0)
-            //         },
-            //         topSelling,
-            //         // recentOrders: await paymentsCollection
-            //         //     .find({ "items.sellerEmail": sellerEmail })
-            //         //     .sort({ createdAt: -1 })
-            //         //     .limit(5)
-            //         //     .toArray()
-            //     };
-
-            //     res.send(response);
-            // } catch (error) {
-            //     console.error('Error fetching seller dashboard data:', error);
-            //     res.status(500).send({ message: 'Internal server error' });
-            // }
-
-            //without promise
-            // try {
-            //     const sellerEmail = req.params.email;
-
-            //     // 1. First get the aggregated data from paymentsCollection
-            // const aggregatedData = await paymentsCollection.aggregate([
-            //     { $match: { "items.sellerEmail": sellerEmail } },
-            //     { $unwind: "$items" },
-            //     { $match: { "items.sellerEmail": sellerEmail } },
-            //     {
-            //         $group: {
-            //             _id: null,
-            //             totalRevenue: {
-            //                 $sum: {
-            //                     $cond: [
-            //                         { $eq: ["$paymentStatus", "Paid"] },
-            //                         { $multiply: ["$items.finalPrice", "$items.quantity"] },
-            //                         0
-            //                     ]
-            //                 }
-            //             },
-
-            //             pendingRevenue: {
-            //                 $sum: {
-            //                     $cond: [
-            //                         { $eq: ["$paymentStatus", "Pending"] },
-            //                         { $multiply: ["$items.finalPrice", "$items.quantity"] },
-            //                         0
-            //                     ]
-            //                 }
-            //             },
-
-            //             totalOrders: { $sum: 1 },
-
-            //             topSelling: {
-            //                 $push: {
-            //                     name: "$items.name",
-            //                     qty: "$items.quantity",
-            //                     medicineId: "$items.medicineId",
-            //                     image: "$items.image"
-            //                 }
-            //             }
-            //         }
-            //     },
-            //     {
-            //         $project: {
-            //             _id: 0,
-            //             totalRevenue: { $round: ["$totalRevenue", 2] },
-            //             pendingRevenue: { $round: ["$pendingRevenue", 2] },
-            //             totalOrders: 1,
-            //             topSelling: 1
-            //         }
-            //     }
-            // ]).toArray();
-
-            //     console.log('aggregatedData', aggregatedData);
-
-
-            //     // 2. Then get the medicines data
-            //     const medicines = await medicineCollection.find({ sellerEmail }).toArray();
-
-            //     // 3. Get recent orders
-            //     const recentOrders = await paymentsCollection
-            //         .find({ "items.sellerEmail": sellerEmail })
-            //         .sort({ createdAt: -1 })
-            //         .limit(5)
-            //         .toArray();
-
-            //     // Process aggregation results
-            //     const result = aggregatedData[0] || {
-            //         totalRevenue: 0,
-            //         pendingRevenue: 0,
-            //         totalOrders: 0,
-            //         topSelling: []
-            //     };
-
-            //     // Calculate top selling medicines
-            //     const medicineSalesMap = {};
-            //     result.topSelling.forEach(item => {
-            //         if (medicineSalesMap[item.medicineId]) {
-            //             medicineSalesMap[item.medicineId].qty += item.qty;
-            //         } else {
-            //             medicineSalesMap[item.medicineId] = { ...item };
-            //         }
-            //     });
-
-            //     const topSelling = Object.values(medicineSalesMap)
-            //         .sort((a, b) => b.qty - a.qty)
-            //         .slice(0, 5);
-
-            //     // Prepare response
-            //     const response = {
-            //         stats: {
-            //             ...result,
-            //             medicineCount: medicines.length,
-            //             stockCount: medicines.reduce((sum, m) => sum + (m.stock || 0), 0)
-            //         },
-            //         topSelling,
-            //         recentOrders
-            //     };
-
-            //     res.send(aggregatedData);
-            //     // res.send(response);
-            // } catch (error) {
-            //     console.error('Error fetching seller dashboard data:', error);
-            //     res.status(500).send({ message: 'Internal server error' });
-            // }
-
         })
         // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
