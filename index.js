@@ -759,7 +759,7 @@ async function run() {
                                     }
                                 },
                                 { $sort: { qty: -1 } }, // Most sold first
-                                { $limit: 3 },
+                                { $limit: 5 },
                                 {
                                     $project: {
                                         _id: 0,
@@ -816,6 +816,43 @@ async function run() {
                                 {
                                     $limit: 7 // Only keep the last 7 days
                                 }
+                            ],
+
+                            // ---------- 4. Recent Sales ----------
+                            recentSales: [
+                                {
+                                    $match: { paymentStatus: "Paid" }
+                                },
+                                // {
+                                //     $unwind: "$items"
+                                // },
+                                // { $match: { "items.sellerEmail": sellerEmail } },
+                                {
+                                    $project: {
+                                        _id: 0,
+                                        name: "$items.name",
+                                        image: "$items.image",
+                                        price: "$items.finalPrice",
+                                        qty: "$items.quantity",
+                                        total: {
+                                            $round: [{ $multiply: ["$items.finalPrice", "$items.quantity"] }, 2]
+                                        },
+                                        date: {
+                                            $dateToString: {
+                                                format: "%b %d, %Y",
+                                                date: { $toDate: "$createdAt" } // Convert numeric timestamp
+                                            },
+                                        },
+                                        sortDate: { $toDate: "$createdAt" }
+                                    }
+                                },
+                                {
+                                    $sort: { sortDate: -1 }
+                                },
+                                {
+                                    $limit: 5
+                                }
+
                             ]
                         }
                     }
@@ -838,12 +875,68 @@ async function run() {
                     }
                 ]).toArray();
 
-                // Optional: Log for debugging
-                // console.log('aggregatedData', aggregatedData.lastSevenDaysRevenue.length);
+                // const result = await paymentsCollection.aggregate([
+                //     {
+                //         $match: { paymentStatus: "Paid" }
+                //     },
+                //     {
+                //         $unwind: "$items"
+                //     },
+                //     { $match: { "items.sellerEmail": sellerEmail } },
+                //     {
+                //         $project: {
+                //             _id: 0,
+                //             name: "$items.name",
+                //             image: "$items.image",
+                //             price: "$items.finalPrice",
+                //             qty: "$items.quantity",
+                //             total: {
+                //                 $round: [{ $multiply: ["$items.finalPrice", "$items.quantity"] }, 2]
+                //             },
+                //             date: {
+                //                 $dateToString: {
+                //                     format: "%b %d, %Y",
+                //                     date: { $toDate: "$createdAt" } // Convert numeric timestamp
+                //                 },
+                //             },
+                //             sortDate: { $toDate: "$createdAt" }
+                //         }
+                //     },
+                //     {
+                //         $sort: { sortDate: -1 }
+                //     },
+                //     {
+                //         $limit: 5
+                //     }
+
+                //     // { $match: { paymentStatus: "Paid" } },
+                //     // { $unwind: "$items" },
+                //     // { $match: { "items.sellerEmail": sellerEmail } },
+                //     // {
+                //     //     $project: {
+                //     //         _id: 0,
+                //     //         name: "$items.name",
+                //     //         image: "$items.image",
+                //     //         qty: "$items.quantity",
+                //     //         price: "$items.finalPrice",
+                //     //         total: { $round: [{ $multiply: ["$items.finalPrice", "$items.quantity"] }, 2] },
+                //     //         date: { $dateToString: { format: "%b %d, %Y", date: { $toDate: "$createdAt" } } },
+                //     //         sortDate: { $toDate: "$createdAt" }
+                //     //     }
+                //     // },
+                //     // { $sort: { sortDate: -1 } },
+                //     // { $limit: 5 }
+
+                // ]).toArray();
+
+
+                // console.log('result', result.length);
+                // console.log('result', result);
+
 
                 // Step 3: Send aggregated data + stock count
-                res.send({ aggregatedData, stockCountResult });
 
+                res.send({ aggregatedData, stockCountResult });
             } catch (error) {
                 console.error('Error fetching seller summary:', error);
                 res.status(500).send({ error: 'Server error' });
