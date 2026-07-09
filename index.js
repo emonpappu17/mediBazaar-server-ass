@@ -609,6 +609,20 @@ async function run() {
             res.send(payment)
         })
 
+        // Get user payment history
+        app.get('/user-payment/:email', verifyToken, async (req, res) => {
+            try {
+                const email = req.params.email;
+                const query = { userEmail: email };
+                const result = await paymentsCollection.find(query).toArray();
+                res.send(result);
+            } catch (error) {
+                console.error("Error fetching user payment history:", error);
+                res.status(500).send({ error: "Internal Server Error" });
+            }
+        })
+
+
         // Seller payment history
         app.get('/seller-payment/:sellerEmail', verifyToken, async (req, res) => {
             try {
