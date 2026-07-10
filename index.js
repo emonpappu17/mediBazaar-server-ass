@@ -107,6 +107,28 @@ async function run() {
             res.send(result)
         })
 
+        // Updating user profile details (name and image)
+        app.patch('/user-update/:email', verifyToken, async (req, res) => {
+            try {
+                const email = req.params.email;
+                const { name, image } = req.body;
+                const filter = { email: email };
+                const updatedDoc = {
+                    $set: {
+                        name: name,
+                        image: image,
+                        updatedAt: Date.now()
+                    }
+                }
+                const result = await userCollection.updateOne(filter, updatedDoc)
+                res.send(result)
+            } catch (err) {
+                console.log("Error updating user profile:", err);
+                res.status(500).send({ error: "Internal Server Error" });
+            }
+        })
+
+
         // Get all advertisement (Admin and Seller)
         app.get('/advertisements', async (req, res) => {
             const { sellerEmail } = req.query;
@@ -600,7 +622,7 @@ async function run() {
                 console.log("Error saving payment:", err);
             }
         })
-
+        // now can you complete full  manage account backend and frontend part 
         // Get payment fo invoice
         app.get('/payments/:id', verifyToken, async (req, res) => {
             const { id } = req.params;
@@ -710,7 +732,161 @@ async function run() {
             }
         })
 
+        // Admin stats endpoint
+        app.get('/adminStats', verifyToken, async (req, res) => {
+            try {
+                // Aggregate overall sales statistics
+                const overallStats = await paymentsCollection.aggregate([
+                    {
+                        $facet: {
+                            // Total revenue summary
+                            revenueSummary: [
+                                {
+                                    $group: {
+                                        _id: null,
+                                        totalRevenue: {
+                                            $sum: {
+                                                $cond: [
+                                                    { $eq: ["$paymentStatus", "Paid"] },
+                                                    "$totalAmount",
+                                                    0
+                                                ]
+                                            }
+                                        },
+                                        pendingRevenue: {
+                                            $sum: {
+                                                $cond: [
+                                                    { $eq: ["$paymentStatus", "Pending"] },
+                                                    "$totalAmount",
+                                                    0
+                                                ]
+                                            }
+                                        },
+                                        totalOrders: { $sum: 1 }
+                                    }
+                                },
+                                {
+                                    $project: {
+                                        _id: 0,
+                                        totalRevenue: { $round: ["$totalRevenue", 2] },
+                                        pendingRevenue: { $round: ["$pendingRevenue", 2] },
+                                        totalOrders: 1
+                                    }
+                                }
+                            ],
+
+                            // Top selling medicines overall
+                            topSelling: [
+                                { $unwind: "$items" },
+                                {
+                                    $group: {
+                                        _id: "$items.name",
+                                        qty: { $sum: "$items.quantity" },
+                                        image: { $first: "$items.image" }
+                                    }
+                                },
+                                { $sort: { qty: -1 } },
+                                { $limit: 5 },
+                                {
+                                    $project: {
+                                        _id: 0,
+                                        name: "$_id",
+                                        qty: 1,
+                                        image: 1
+                                    }
+                                }
+                            ],
+
+                            // Last 7 days revenue overall
+                            lastSevenDaysRevenue: [
+                                { $match: { paymentStatus: "Paid" } },
+                                {
+                                    $addFields: {
+                                        createdAtDate: { $toDate: "$createdAt" }
+                                    }
+                                },
+                                {
+                                    $group: {
+                                        _id: {
+                                            dateStr: { $dateToString: { format: "%b %d, %Y", date: "$createdAtDate" } },
+                                            dateObj: { $dateTrunc: { date: "$createdAtDate", unit: "day" } }
+                                        },
+                                        revenue: { $sum: "$totalAmount" }
+                                    }
+                                },
+                                {
+                                    $project: {
+                                        _id: 0,
+                                        date: "$_id.dateStr",
+                                        dateForSort: "$_id.dateObj",
+                                        revenue: { $round: ["$revenue", 2] }
+                                    }
+                                },
+                                { $sort: { dateForSort: -1 } },
+                                { $limit: 7 }
+                            ],
+
+                            // Recent sales overall
+                            recentSales: [
+                                { $match: { paymentStatus: "Paid" } },
+                                {
+                                    $project: {
+                                        _id: 0,
+                                        name: "$items.name",
+                                        image: "$items.image",
+                                        price: "$items.finalPrice",
+                                        qty: "$items.quantity",
+                                        total: { $round: ["$totalAmount", 2] },
+                                        date: {
+                                            $dateToString: {
+                                                format: "%b %d, %Y",
+                                                date: { $toDate: "$createdAt" }
+                                            }
+                                        },
+                                        sortDate: { $toDate: "$createdAt" }
+                                    }
+                                },
+                                { $sort: { sortDate: -1 } },
+                                { $limit: 5 }
+                            ]
+                        }
+                    }
+                ]).toArray();
+
+                // Aggregate stock count across all medicines
+                const [stockCountResult] = await medicineCollection.aggregate([
+                    {
+                        $group: {
+                            _id: null,
+                            stockCount: { $sum: "$stock" }
+                        }
+                    },
+                    {
+                        $project: {
+                            _id: 0,
+                            stockCount: 1
+                        }
+                    }
+                ]).toArray();
+
+                // Total users and sellers counts
+                const totalUsers = await userCollection.countDocuments({ role: "user" });
+                const totalSellers = await userCollection.countDocuments({ role: "seller" });
+
+                res.send({
+                    aggregatedData: overallStats[0] || {},
+                    stockCountResult: stockCountResult || { stockCount: 0 },
+                    totalUsers,
+                    totalSellers
+                });
+            } catch (error) {
+                console.error("Error fetching admin stats:", error);
+                res.status(500).send({ error: "Internal Server Error" });
+            }
+        })
+
         app.get('/sellerStats/:email', async (req, res) => {
+
             try {
                 const sellerEmail = req.params.email;
 
