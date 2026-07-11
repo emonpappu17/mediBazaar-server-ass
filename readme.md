@@ -80,7 +80,7 @@ Both client and server use environment variables to keep Firebase configuration 
 **Server (.env)**
 ```
 DB_USER=
-DB_PASS=WO
+DB_PASS=
 ACCESS_TOKEN_SECRET=
 STRIPE_SECRET_KEY=
 ```
