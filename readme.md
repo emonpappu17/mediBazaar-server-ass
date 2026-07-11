@@ -66,20 +66,21 @@ Both client and server use environment variables to keep Firebase configuration 
 
 **Client (.env)**
 ```
-VITE_apiKey=
-VITE_authDomain=
-VITE_projectId=
-VITE_storageBucket=
-VITE_messagingSenderId=
-VITE_appId=
-VITE_STRIPE_PUBLISHABLE_KEY=
-VITE_API_URL=
+ VITE_FIREBASE_API_KEY=
+ VITE_FIREBASE_AUTH_DOMAIN=
+ VITE_FIREBASE_PROJECT_ID=
+ VITE_FIREBASE_STORAGE_BUCKET=
+ VITE_FIREBASE_MESSAGING_SENDER_ID=
+ VITE_FIREBASE_APP_ID=
+ VITE_IMGBB_API_KEY=
+ VITE_API_URL=
+ VITE_STRIPE_PUBLISHABLE_KEY=
 ```
 
 **Server (.env)**
 ```
 DB_USER=
-DB_PASS=
+DB_PASS=WO
 ACCESS_TOKEN_SECRET=
 STRIPE_SECRET_KEY=
 ```
